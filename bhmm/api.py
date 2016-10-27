@@ -195,6 +195,8 @@ def init_hmm(observations, nstates, lag=1, output=None, reversible=True):
         return init_discrete_hmm(observations, nstates, lag=lag, reversible=reversible)
     elif output == 'gaussian':
         return init_gaussian_hmm(observations, nstates, lag=lag, reversible=reversible)
+    elif output == 'gaussian mixture':
+        return init_gaussian_mixture_hmm(observations, nstates, mcomponents, lag=lag, reversible=reversible)
     else:
         raise NotImplementedError('output model type '+str(output)+' not yet implemented.')
 
@@ -223,6 +225,33 @@ def init_gaussian_hmm(observations, nstates, lag=1, reversible=True):
     if lag > 1:
         observations = lag_observations(observations, lag)
     hmm0 = gaussian.init_model_gaussian1d(observations, nstates, reversible=reversible)
+    hmm0._lag = lag
+    return hmm0
+
+def init_gaussian_mixture_hmm(observations, nstates, mcomponents, lag=1, reversible=True):
+    """ Use a heuristic scheme to generate an initial model.
+
+    Parameters
+    ----------
+    observations : list of ndarray((T_i))
+        list of arrays of length T_i with observation data
+    nstates : int
+        The number of states.
+
+    Examples
+    --------
+
+    Generate initial model for a gaussian output model.
+
+    >>> import bhmm
+    >>> [model, observations, states] = bhmm.testsystems.generate_synthetic_observations(output='gaussian mixture')
+    >>> initial_model = init_gaussian_hmm(observations, model.nstates, model.ncomponents)
+
+    """
+    from bhmm.init import gaussian_mixture
+    if lag > 1:
+        observations = lag_observations(observations, lag)
+    hmm0 = gaussian.init_model_gaussian_mixture(observations, nstates, reversible=reversible)
     hmm0._lag = lag
     return hmm0
 

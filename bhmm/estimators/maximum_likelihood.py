@@ -127,7 +127,12 @@ class MaximumLikelihoodEstimator(object):
         # pre-construct hidden variables
         self._alpha = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
         self._beta = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
-        self._pobs = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
+        if output == 'gaussian mixture':
+            self._pobs = np.zeros((self._maxT, self._nstates, self._hmm.mixtures), config.dtype, order='C')
+            #self._gammas = [np.zeros((len(self._observations[i]), self._nstates, self._hmm.mixtures), config.dtype, order='C')
+            #                for i in range(self._nobs)]
+        else:
+            self._pobs = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
         self._gammas = [np.zeros((len(self._observations[i]), self._nstates), config.dtype, order='C')
                         for i in range(self._nobs)]
         self._Cs = [np.zeros((self._nstates, self._nstates), config.dtype, order='C') for _ in range(self._nobs)]
@@ -216,7 +221,7 @@ class MaximumLikelihoodEstimator(object):
     def stationary_probability(self):
         r""" Stationary probability, if the model is stationary """
         assert self._stationary, 'Estimator is not stationary'
-        return self._hmm.Pi
+        return self._hmm._Pi
 
     def _forward_backward(self, itraj):
         """
@@ -258,7 +263,10 @@ class MaximumLikelihoodEstimator(object):
         # t4 = time.time()
         # self._fbtimings[2] += t4-t3
         # gamma
-        hidden.state_probabilities(self._alpha, self._beta, T=T, gamma_out=self._gammas[itraj])
+        if self._hmm.output_model.model_type == 'gaussian mixture':
+            hidden.state_probabilities_mixture(self._alpha, self._beta, self._pobs, T=T, gamma_out=self._gammas[itraj])
+        else:
+            hidden.state_probabilities(self._alpha, self._beta, T=T, gamma_out=self._gammas[itraj])
         # t5 = time.time()
         # self._fbtimings[3] += t5-t4
         # count matrix

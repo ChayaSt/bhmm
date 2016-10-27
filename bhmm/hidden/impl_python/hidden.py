@@ -37,7 +37,7 @@ def forward(A, pobs, pi, T=None, alpha_out=None, dtype=np.float32):
     ----------
     A : ndarray((N,N), dtype = float)
         transition matrix of the hidden states
-    pobs : ndarray((T,N), dtype = float)
+    pobs : ndarray((T,N), dtype = float) or ndarray((T,N,M), dtype=float))
         pobs[t,i] is the observation probability for observation at time t given hidden state i
     pi : ndarray((N), dtype = float)
         initial distribution of hidden states
@@ -58,6 +58,10 @@ def forward(A, pobs, pi, T=None, alpha_out=None, dtype=np.float32):
         used in many different algorithms related to HMMs.
 
     """
+    # if output is gaussian mixture, sum mixtures
+    if len(pobs.shape) == 3:
+        pobs = pobs.sum(axis=2)
+
     # set T
     if T is None:
         T = pobs.shape[0]  # if not set, use the length of pobs as trajectory length
@@ -117,6 +121,10 @@ def backward(A, pobs, T=None, beta_out=None, dtype=np.float32):
         used in many different algorithms related to HMMs.
 
     """
+    # if output is gaussian mixture, sum mixtures
+    if len(pobs.shape) == 3:
+        pobs = pobs.sum(axis=2)
+
     # set T
     if T is None:
         T = pobs.shape[0]  # if not set, use the length of pobs as trajectory length
