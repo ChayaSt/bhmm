@@ -158,7 +158,7 @@ def discrete_hmm(pi, P, pout):
     return dhmm
 
 
-def init_hmm(observations, nstates, lag=1, output=None, reversible=True):
+def init_hmm(observations, nstates, mcomponents=None, lag=1, output=None, reversible=True):
     """Use a heuristic scheme to generate an initial model.
 
     Parameters
@@ -251,7 +251,7 @@ def init_gaussian_mixture_hmm(observations, nstates, mcomponents, lag=1, reversi
     from bhmm.init import gaussian_mixture
     if lag > 1:
         observations = lag_observations(observations, lag)
-    hmm0 = gaussian.init_model_gaussian_mixture(observations, nstates, reversible=reversible)
+    hmm0 = gaussian_mixture.init_model_gaussian_mix(observations, nstates, mcomponents, reversible=reversible)
     hmm0._lag = lag
     return hmm0
 

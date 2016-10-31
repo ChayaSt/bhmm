@@ -57,7 +57,7 @@ class MaximumLikelihoodEstimator(object):
         for ecology," Bull. Amer. Meteorol. Soc., vol. 73, pp. 360-363, 1967.
 
     """
-    def __init__(self, observations, nstates, initial_model=None, output='gaussian',
+    def __init__(self, observations, nstates, mcomponents=None, initial_model=None, output='gaussian',
                  reversible=True, stationary=False, p=None, accuracy=1e-3, maxit=1000, maxit_P=100000):
         """Initialize a Bayesian hidden Markov model sampler.
 
@@ -113,7 +113,7 @@ class MaximumLikelihoodEstimator(object):
             self._hmm = copy.deepcopy(initial_model)
         else:
             # Generate our own initial model.
-            self._hmm = bhmm.init_hmm(observations, nstates, output=output)
+            self._hmm = bhmm.init_hmm(observations, nstates, mcomponents, output=output)
 
         # stationary and initial distribution
         self._fixed_stationary_distribution = None
@@ -128,13 +128,14 @@ class MaximumLikelihoodEstimator(object):
         self._alpha = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
         self._beta = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
         if output == 'gaussian mixture':
-            self._pobs = np.zeros((self._maxT, self._nstates, self._hmm.mixtures), config.dtype, order='C')
-            #self._gammas = [np.zeros((len(self._observations[i]), self._nstates, self._hmm.mixtures), config.dtype, order='C')
-            #                for i in range(self._nobs)]
+            self._pobs = [np.zeros((len(self._observations[i]), self._nstates, self._hmm.output_model.mcomponents),
+                                   config.dtype, order='C') for i in range(self._nobs)]
+            self._gammas = [np.zeros((len(self._observations[i]), self._nstates, self._hmm.output_model.mcomponents),
+                                     config.dtype, order='C') for i in range(self._nobs)]
         else:
-            self._pobs = np.zeros((self._maxT, self._nstates), config.dtype, order='C')
-        self._gammas = [np.zeros((len(self._observations[i]), self._nstates), config.dtype, order='C')
-                        for i in range(self._nobs)]
+            self._pobs = np.zeros((len(self._maxT), self._nstates), config.dtype, order='C')
+            self._gammas = [np.zeros((len(self._observations[i]), self._nstates), config.dtype, order='C')
+                            for i in range(self._nobs)]
         self._Cs = [np.zeros((self._nstates, self._nstates), config.dtype, order='C') for _ in range(self._nobs)]
 
         # convergence options
@@ -251,26 +252,26 @@ class MaximumLikelihoodEstimator(object):
         T = len(obs)
         # compute output probability matrix
         # t1 = time.time()
-        self._hmm.output_model.p_obs(obs, out=self._pobs)
+        self._hmm.output_model.p_obs(obs, out=self._pobs[itraj])
         # t2 = time.time()
         # self._fbtimings[0] += t2-t1
         # forward variables
-        logprob = hidden.forward(A, self._pobs, pi, T=T, alpha_out=self._alpha)[0]
+        logprob = hidden.forward(A, self._pobs[itraj], pi, T=T, alpha_out=self._alpha)[0]
         # t3 = time.time()
         # self._fbtimings[1] += t3-t2
         # backward variables
-        hidden.backward(A, self._pobs, T=T, beta_out=self._beta)
+        hidden.backward(A, self._pobs[itraj], T=T, beta_out=self._beta)
         # t4 = time.time()
         # self._fbtimings[2] += t4-t3
         # gamma
         if self._hmm.output_model.model_type == 'gaussian mixture':
-            hidden.state_probabilities_mixture(self._alpha, self._beta, self._pobs, T=T, gamma_out=self._gammas[itraj])
+            self._gammas[itraj] = hidden.state_probabilities_mixtures(self._alpha, self._beta, self._pobs[itraj], T=T)
         else:
             hidden.state_probabilities(self._alpha, self._beta, T=T, gamma_out=self._gammas[itraj])
         # t5 = time.time()
         # self._fbtimings[3] += t5-t4
         # count matrix
-        hidden.transition_counts(self._alpha, self._beta, A, self._pobs, T=T, out=self._Cs[itraj])
+        hidden.transition_counts(self._alpha, self._beta, A, self._pobs[itraj], T=T, out=self._Cs[itraj])
         # t6 = time.time()
         # self._fbtimings[4] += t6-t5
         # return results

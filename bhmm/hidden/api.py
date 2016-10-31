@@ -236,18 +236,18 @@ def state_probabilities_mixtures(alpha, beta, pobs, T=None, gamma_out=None):
         if T < gamma_out.shape[0]:
             gamma_out = gamma_out[:T]
     else:
+        gamma_out = gamma_out[:, :, 0]
         if gamma_out.shape[0] < alpha.shape[0]:
+            #Todo broadcast this muliplication properly (gamma_out has an extra dimension)
             np.multiply(alpha[:T], beta[:T], gamma_out)
         else:
             np.multiply(alpha, beta, gamma_out)
     # normalize
     np.divide(gamma_out, np.dot(gamma_out, ones), out=gamma_out)
     # normalize pobs (over all mixture components for each state)
-    ones = np.ones(pobs.shape[-1])[:, None]
-    np.divide(pobs, np.dot(pobs, ones), out=pobs)
+    ones_p = np.ones(pobs.shape[-1])[:, None]
+    np.divide(pobs, np.dot(pobs, ones_p), out=pobs)
     gamma_out = gamma_out[:,:, np.newaxis]*pobs
-    if gamma_out.shape != pobs.shape:
-        raise ValueError('Something went wrong when calculating gamma for GMMS')
     # done
     return gamma_out
 

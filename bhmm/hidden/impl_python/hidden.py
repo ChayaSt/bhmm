@@ -187,6 +187,10 @@ def transition_counts(alpha, beta, A, pobs, T=None, out=None, dtype=np.float32):
     backward : calculate backward coefficients `beta`
 
     """
+    # if output is gaussian mixture, sum mixtures
+    if len(pobs.shape) == 3:
+        pobs = pobs.sum(axis=2)
+
     # set T
     if T is None:
         T = pobs.shape[0]  # if not set, use the length of pobs as trajectory length

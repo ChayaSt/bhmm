@@ -37,7 +37,7 @@ class OutputModel(object):
     # implementation used
     __impl__ = __IMPL_PYTHON__
 
-    def __init__(self, nstates, mixtures=None, ignore_outliers=True):
+    def __init__(self, nstates, mcomponents=None, ignore_outliers=True):
         """
         Create a general output model.
 
@@ -58,8 +58,8 @@ class OutputModel(object):
         self._nstates = nstates
         self.ignore_outliers = ignore_outliers
         self.found_outliers = False
-        if mixtures is not None:
-            self._mixtures = mixtures
+        if mcomponents is not None:
+            self._mcomponents = mcomponents
 
         return
 

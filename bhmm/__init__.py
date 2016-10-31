@@ -36,7 +36,7 @@ from bhmm.estimators.bayesian_sampling import BayesianHMMSampler as BHMM
 from bhmm.estimators.maximum_likelihood import MaximumLikelihoodEstimator as MLHMM
 
 # output models
-from bhmm.output_models import OutputModel, GaussianOutputModel, DiscreteOutputModel
+from bhmm.output_models import OutputModel, GaussianOutputModel, DiscreteOutputModel, GaussianMixOutputModel
 
 # other stuff
 from bhmm.util import config

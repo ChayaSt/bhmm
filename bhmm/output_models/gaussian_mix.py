@@ -33,7 +33,7 @@ class GaussianMixOutputModel(OutputModel):
 
     """
 
-    def __init__(self, nstates, mixtures, means=None, sigmas=None, weights=None, ignore_outliers=True):
+    def __init__(self, nstates, mcomponents, means=None, sigmas=None, mix_coef=None, ignore_outliers=True):
         """
         Create a 1D Gaussian output model.
 
@@ -43,9 +43,9 @@ class GaussianMixOutputModel(OutputModel):
             The number of output states.
         mixtrues: int
             The number of mixture components
-        means : array_like of shape (nstates, mixtures), optional, default=None
+        means : array_like of shape (nstates, mcomponents), optional, default=None
             If specified, initialize the Gaussian means to these values.
-        sigmas : array_like of shape (nstates, mixtures), optional, default=None
+        sigmas : array_like of shape (nstates, mcomponents), optional, default=None
             If specified, initialize the Gaussian variances to these values.
 
         Examples
@@ -56,30 +56,31 @@ class GaussianMixOutputModel(OutputModel):
         >>> output_model = GaussianOutputModel(nstates=3, means=[-1, 0, 1], sigmas=[0.5, 1, 2])
 
         """
-        OutputModel.__init__(self, nstates, mixtures, ignore_outliers=ignore_outliers)
+        OutputModel.__init__(self, nstates, mcomponents, ignore_outliers=ignore_outliers)
 
         dtype = config.dtype  # type for internal storage
 
         if means is not None:
             self._means = np.array(means, dtype=dtype)
-            if self._means.shape != (nstates, mixtures):
-                raise Exception('means must have shape (%d, %d); instead got %s' % (nstates, mixtures, str(self._means.shape)))
+            if self._means.shape != (nstates, mcomponents):
+                raise Exception('means must have shape (%d, %d); instead got %s' % (nstates, mcomponents, str(self._means.shape)))
         else:
-            self._means = np.zeros([nstates, mixtures], dtype=dtype)
+            self._means = np.zeros([nstates, mcomponents], dtype=dtype)
 
         if sigmas is not None:
             self._sigmas = np.array(sigmas, dtype=dtype)
-            if self._sigmas.shape != (nstates, mixtures):
-                raise Exception('sigmas must have shape (%d, %d); instead got %s' % (nstates, mixtures, str(self._sigmas.shape)))
+            if self._sigmas.shape != (nstates, mcomponents):
+                raise Exception('sigmas must have shape (%d, %d); instead got %s' % (nstates, mcomponents, str(self._sigmas.shape)))
         else:
-            self._sigmas = np.zeros([nstates, mixtures], dtype=dtype)
+            self._sigmas = np.zeros([nstates, mcomponents], dtype=dtype)
 
-        if weights is not None:
-            self._weights = np.array(weights, dtype=dtype)
-            if self._weights.shape != (nstates, mixtures):
-                raise Exception('weights must have shape (%d, %d); instead got %s' % (nstates, mixtures, str(self._weights.shape)))
+        if mix_coef is not None:
+            self._mix_coef = np.array(mix_coef, dtype=dtype)
+            if self._mix_coef.shape != (nstates, mcomponents):
+                raise Exception('mixture coefficients must have shape (%d, %d); instead got %s' % (nstates, mcomponents, str(self._mix_coef.shape)))
         else:
-            self._weights = np.zeros([nstates, mixtures], dtype=dtype)
+            #ToDo guess coefficients?
+            self._mix_coef = np.zeros([nstates, mcomponents], dtype=dtype)
 
         return
 
@@ -91,11 +92,11 @@ class GaussianMixOutputModel(OutputModel):
 
         """
 
-        return "GaussianMixOutputModel(%d, %d, means=%s, sigmas=%s)" % (self.nstates, self.mixtures, repr(self.means), repr(self.sigmas))
+        return "GaussianMixOutputModel(%d, %d, means=%s, sigmas=%s)" % (self.nstates, self.mcomponents, repr(self.means), repr(self.sigmas))
 
     def __str__(self):
         r""" Human-readable string representation of this output model
-        >>> output_model = GaussianMixOutputModel(nstates=3, mixtures=1, means=[-1, 0, 1], sigmas=[0.5, 1, 2])
+        >>> output_model = GaussianMixOutputModel(nstates=3, mcoomponents=1, means=[-1, 0, 1], sigmas=[0.5, 1, 2])
         >>> print(str(output_model))
         --------------------------------------------------------------------------------
         GaussianOutputModel
@@ -108,7 +109,7 @@ class GaussianMixOutputModel(OutputModel):
         output = "--------------------------------------------------------------------------------\n"
         output += "GaussianMixtureOutputModel\n"
         output += "nstates: %d\n" % self.nstates
-        output += "mixture components %d\n" % self.mixtures
+        output += "mixture components %d\n" % self.mcomponents
         output += "means: %s\n" % str(self.means)
         output += "sigmas: %s\n" % str(self.sigmas)
         output += "--------------------------------------------------------------------------------"
@@ -120,9 +121,9 @@ class GaussianMixOutputModel(OutputModel):
         return 'gaussian mixture'
 
     @property
-    def mixtures(self):
+    def mcomponents(self):
         r""" Mixture components of output model"""
-        return self._mixtures
+        return self._mcomponents
 
     @property
     def dimension(self):
@@ -142,12 +143,12 @@ class GaussianMixOutputModel(OutputModel):
         return self._sigmas
 
     @property
-    def weights(self):
+    def mix_coef(self):
         r""" mixture coefficients for mixtures"""
-        return self._weights
+        return self._mix_coef
 
     def sub_output_model(self, states):
-        return GaussianOutputModel(self._means[states], self._sigmas[states])
+        return GaussianMixOutputModel(self._means[states], self._sigmas[states], self._mix_coef[states])
 
     def _p_o(self, o):
         """
@@ -181,9 +182,8 @@ class GaussianMixOutputModel(OutputModel):
         elif self.__impl__ == self.__IMPL_PYTHON__:
             C = 1.0 / (np.sqrt(2.0 * np.pi) * self.sigmas)
             Pobs = C * np.exp(-0.5 * ((o-self.means)/self.sigmas)**2)
-            weighted = Pobs*self.weights
-            weighted_sum = weighted.sum(axis=1)
-            return weighted_sum
+            weighted = Pobs*self.mix_coef
+            return weighted
         else:
             raise RuntimeError('Implementation '+str(self.__impl__)+' not available')
 
@@ -198,8 +198,8 @@ class GaussianMixOutputModel(OutputModel):
 
         Return
         ------
-        p_o : ndarray (T,N)
-            the probability of generating the symbol at time point t from any of the N hidden states
+        p_o : ndarray (T,N,M)
+            the probability of generating the symbol at time point t from any of the N hidden states with the mth mixture component
 
         Examples
         --------
@@ -222,7 +222,7 @@ class GaussianMixOutputModel(OutputModel):
         elif self.__impl__ == self.__IMPL_PYTHON__:
             T = len(obs)
             if out is None:
-                res = np.zeros((T, self.nstates), dtype=config.dtype)
+                res = np.zeros((T, self.nstates, self.mcomponents), dtype=config.dtype)
             else:
                 res = out
             for t in range(T):
@@ -231,7 +231,7 @@ class GaussianMixOutputModel(OutputModel):
         else:
             raise RuntimeError('Implementation '+str(self.__impl__)+' not available')
 
-    def estimate(self, observations, weights):
+    def estimate(self, observations, gammas):
         """
         Fits the output model given the observations and weights
 
@@ -256,39 +256,45 @@ class GaussianMixOutputModel(OutputModel):
 
         Update the observation model parameters my a maximum-likelihood fit.
 
-        >>> output_model.estimate(observations, weights)
+        >>> output_model.estimate(observations, gammas)
 
         """
         # sizes
         N = self.nstates
-        M = self.mixtures
+        M = self.mcomponents
         K = len(observations)
 
         # fit means
         self._means = np.zeros([N,M])
-        w_sum = np.zeros(N)
+        w_sum = np.zeros((N,M))
         for k in range(K):
             # update nominator
             for i in range(N):
-                self.means[i] += np.dot(weights[k][:,i],observations[k])
+                for j in range(M):
+                    self.means[i][j] += np.dot(gammas[k][:,i, j],observations[k])
             # update denominator
-            w_sum += np.sum(weights[k], axis=0)
+            w_sum += np.sum(gammas[k], axis=0)
         # normalize
         self._means /= w_sum
 
         # fit variances
-        self._sigmas  = np.zeros(N)
-        w_sum = np.zeros(N)
+        self._sigmas  = np.zeros((N,M))
         for k in range(K):
             # update nominator
             for i in range(N):
-                Y = (observations[k] - self.means[i])**2
-                self.sigmas[i] += np.dot(weights[k][:, i], Y)
+                for j in range(M):
+                    Y = (observations[k] - self.means[i][j])**2
+                    self.sigmas[i][j] += np.dot(gammas[k][:, i, j], Y)
             # update denominator
-            w_sum += np.sum(weights[k], axis=0)
+            # Is this a bug?
+            # w_sum += np.sum(gammas[k], axis=0)
         # normalize
         self._sigmas /= w_sum
         self._sigmas = np.sqrt(self.sigmas)
+
+         # fit coefficients
+        self._mix_coef = np.zeros([N,M])
+        np.divide(w_sum, np.sum(w_sum, axis=1)[:, np.newaxis], self._mix_coef)
 
     def sample(self, observations, prior=None):
         """
@@ -433,6 +439,10 @@ class GaussianMixOutputModel(OutputModel):
         o_t = np.zeros([T], dtype=config.dtype)
         for t in range(T):
             s = s_t[t]
-            o_t[t] = self.sigmas[s] * np.random.randn() + self.means[s]
+            # choose component
+            cdf = np.cumsum(self._mix_coef[s])
+            rand = np.random.random()
+            m = cdf.searchsorted(rand)
+            o_t[t] = self.sigmas[s][m] * np.random.randn() + self.means[s][m]
         return o_t
 
